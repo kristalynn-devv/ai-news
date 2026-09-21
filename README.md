@@ -1,56 +1,56 @@
 # AI Daily
 
-ต้นแบบหนังสือพิมพ์ออนไลน์ภาษาไทยสำหรับติดตามข่าว AI ทั้งมุมมองผู้อ่านทั่วไปและ AI Fullstack Developer พร้อมหน้าหลังบ้านสำหรับสร้างร่าง ตรวจแก้ และอนุมัติข่าว
+A Thai-language daily for AI news, with the editorial back office attached. Readers get a
+general feed and a developer-oriented one; editors get a review queue, a draft editor, and an
+approval trail that cannot be rewritten after the fact.
 
-> สถานะปัจจุบัน: prototype สำหรับพัฒนาและทดสอบในเครื่อง ข้อมูลหน้าเว็บเริ่มต้นเป็นข้อมูลจำลอง และยังไม่ได้เชื่อมบริการ production หรือ deploy
+> **Status: prototype.** Runs locally against mock data. Nothing is deployed, and no production
+> service is wired up yet.
 
-## ความสามารถปัจจุบัน
+## What works today
 
-- หน้าอ่านข่าวทั่วไปและมุมมองสำหรับนักพัฒนา
-- หน้ารายละเอียดข่าวพร้อมแหล่งอ้างอิง
-- หน้าหลังบ้านสำหรับคิวตรวจข่าว การสร้างและแก้ไขร่าง
-- ประวัติ revision และการอนุมัติแบบ immutable
-- Supabase schema, RLS และ RPC สำหรับ workflow ของบรรณาธิการ
-- static export ที่พร้อมนำโฟลเดอร์ `out/` ไปใช้กับ static hosting
-- unit tests, PostgreSQL contract tests และ Playwright browser tests
+- Reader feed, a separate developer view, and article pages with their sources
+- Editorial back office — review queue, draft creation, revision
+- Immutable revision history and approval records
+- Supabase schema, RLS policies, and RPCs covering the editor workflow
+- Static export: `out/` drops onto any static host
+- Unit tests, PostgreSQL contract tests, and Playwright browser tests
 
-รายละเอียดผลิตภัณฑ์อยู่ใน [PRD.md](./PRD.md)
+Product detail lives in [PRD.md](./PRD.md).
 
-## เทคโนโลยี
+## Stack
 
-- Next.js และ React
-- TypeScript
-- Tailwind CSS 4 และ daisyUI 5
-- Supabase/PostgreSQL สำหรับ backend foundation
-- Playwright สำหรับ browser tests
+Next.js · TypeScript · Tailwind CSS 4 · daisyUI 5 · Supabase/PostgreSQL · Playwright
 
-## เริ่มต้นใช้งาน
+## Getting started
 
-แนะนำ Node.js 22.18 ขึ้นไป
+Node.js 22.18 or newer.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-เปิด `http://127.0.0.1:3000` โดยค่าเริ่มต้นระบบจะใช้ข้อมูลจำลอง จึงไม่ต้องมีบัญชีหรือ API key
+Open `http://127.0.0.1:3000`. The default data source is mock data, so no account or API key is
+needed to look around.
 
-## คำสั่งหลัก
+## Commands
 
-```bash
-npm test          # unit tests
-npm run typecheck # TypeScript checks
-npm run build     # production static export ไปยัง out/
-npm start         # เปิด static preview หลัง build
-npm run test:e2e  # Playwright browser tests
-npm run test:db   # PostgreSQL contract tests ผ่าน Docker
-```
+| Command | What it does |
+| --- | --- |
+| `npm test` | Unit tests |
+| `npm run typecheck` | TypeScript, no emit |
+| `npm run build` | Production static export into `out/` |
+| `npm start` | Serve the built export |
+| `npm run test:e2e` | Playwright browser tests |
+| `npm run test:db` | PostgreSQL contract tests via Docker |
 
-`npm run test:db` ต้องใช้ Docker และ image `postgres:16` ที่มีอยู่ในเครื่อง คำสั่งทดสอบจะไม่ดาวน์โหลด image ให้อัตโนมัติ
+`npm run test:db` expects Docker and a local `postgres:16` image. It will not pull the image for
+you — that is deliberate, so a test run never surprises you with a download.
 
-## การตั้งค่า Supabase
+## Supabase
 
-คัดลอก `.env.example` เป็น `.env.local` แล้วใส่เฉพาะค่า public ของโปรเจกต์ที่ได้รับอนุมัติ:
+Copy `.env.example` to `.env.local` and fill in public values only:
 
 ```env
 NEXT_PUBLIC_DATA_SOURCE=supabase
@@ -58,32 +58,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_PUBLIC_KEY
 ```
 
-ห้ามใส่ service-role key, provider key หรือ secret อื่นในตัวแปร `NEXT_PUBLIC_*` หรือ commit ลง repository
-
-ฐานข้อมูลอยู่ใน `supabase/migrations/` และชุดทดสอบอยู่ใน `supabase/tests/` การมีไฟล์ migration ไม่ได้หมายความว่ามีการนำไปใช้กับ Supabase ภายนอกแล้ว
-
-### AI provider API key
-
-หน้าเว็บเป็น static export จึงห้ามใส่ AI provider key ใน `NEXT_PUBLIC_*` หรือ source code
-
-- Production: เพิ่มคีย์ใน Supabase Dashboard ที่ **Edge Functions → Secrets** เช่น `OPENAI_API_KEY`
-- Local Edge Functions: เก็บใน `supabase/functions/.env` ซึ่งถูก `.gitignore` กันออกจาก Git
-- Edge Function อ่านค่าด้วย `Deno.env.get('OPENAI_API_KEY')`
-
-ระบบยังไม่ได้เลือกหรือเรียก AI provider จริง ชื่อ secret ต้องตรงกับ provider ที่เลือกภายหลัง หากเปิดให้ Admin จัดการหลาย credential ผ่านหน้าเว็บ ให้เก็บค่าเข้ารหัสใน Supabase Vault และบันทึกเฉพาะ Vault UUID ใน `private.credential_refs`
-
-## โครงสร้างสำคัญ
-
-```text
-app/                 Next.js routes และ styles
-components/          reader, newsroom และ admin UI
-lib/                 contracts, data และ backend adapters
-supabase/migrations/ PostgreSQL schema, RLS และ RPC
-supabase/tests/      database contract tests
-tests/               Playwright browser tests
-unit/                Node unit tests
-```
+Service-role keys belong nowhere near this file. Authorization is enforced by RLS in the
+database, not by the client.
 
 ## License
 
-โครงการนี้เผยแพร่ภายใต้ [MIT License](./LICENSE)
+[MIT](./LICENSE)

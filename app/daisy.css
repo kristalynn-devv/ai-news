@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: false;
+  logs: false;
+}
+
+@plugin "daisyui/theme" {
+  name: "aidaily";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: #faf9f6;
+  --color-base-200: #f1f2ed;
+  --color-base-300: #dedfd7;
+  --color-base-content: #202721;
+  --color-primary: #235bbd;
+  --color-primary-content: #ffffff;
+  --color-secondary: #315642;
+  --color-secondary-content: #ffffff;
+  --color-accent: #58795e;
+  --color-accent-content: #ffffff;
+  --color-neutral: #202721;
+  --color-neutral-content: #ffffff;
+  --color-info: #235bbd;
+  --color-success: #315642;
+  --color-warning: #a47d32;
+  --color-error: #a15445;
+  --radius-selector: .25rem;
+  --radius-field: .25rem;
+  --radius-box: .35rem;
+  --size-selector: .25rem;
+  --size-field: .25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Keep the editorial surface flat while daisyUI owns component behavior. */
+.btn-primary {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+.btn-neutral {
+  border-color: var(--color-neutral);
+  background-color: var(--color-neutral);
+  color: var(--color-neutral-content);
+}
+
+.btn-outline,
+.btn-ghost {
+  background-color: transparent;
+}
+
+.btn-outline {
+  border-color: var(--color-base-300);
+}
+
+.btn-square {
+  padding: 0;
+}
+
+/* These editorial selectors contain two text rows, so they cannot use btn's
+   single-line fixed height. */
+.mode-options > .btn,
+.agent-list > .btn {
+  height: auto;
+  min-height: var(--size);
+}
+
+/* The legacy form reset is intentionally unlayered; restore daisyUI's
+   checkbox paint and remove the text-field padding it would otherwise inherit. */
+.checkbox {
+  padding: 0;
+  background-color: var(--color-base-100);
+}
+
+.checkbox:checked {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+}
+
+.stats-grid {
+  grid-auto-flow: row;
+}
+
+.queue-status {
+  border-radius: .2rem;
+  padding: .2rem .45rem;
+  font-size: .5625rem;
+  white-space: nowrap;
+}

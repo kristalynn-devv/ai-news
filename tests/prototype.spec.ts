@@ -1,0 +1,78 @@
+import { test, expect } from '@playwright/test';
+test.skip(process.env.TEST_SUPABASE === '1', 'Prototype suite uses mock build');
+test('shared story, technical toggle, Thai search, bookmarks and empty edition', async ({ page }) => {
+ await page.goto('/');
+ await expect(page.getByRole('heading',{level:1})).toContainText('โลก AI');
+ await page.getByRole('link',{name:'เมื่อ AI ไม่ได้แค่ตอบคำถาม แต่เริ่มช่วยเราทำงานจนเสร็จ'}).first().click();
+ await page.waitForURL(/\/news\/agent-workspace\/?$/);
+ const headline = await page.getByRole('heading',{level:1}).innerText();
+ await page.getByRole('button',{name:'มุมมองนักพัฒนา',exact:true}).click();
+ await expect(page.getByText('จากเรื่องที่อ่าน สู่สิ่งที่ลองทำ')).toBeVisible();
+ await expect(page.getByRole('heading',{level:1})).toHaveText(headline);
+ await page.getByRole('button',{name:'บันทึกอ่านภายหลัง',exact:true}).click();
+ await page.goto('/');
+ await page.getByRole('link',{name:'รายการอ่านภายหลัง',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'รายการอ่านภายหลัง · 1 เรื่อง'})).toBeVisible();
+ await page.getByRole('link',{name:'ค้นหาข่าว',exact:true}).click();
+ await expect(page.getByRole('textbox',{name:'ค้นหาข่าว'})).toBeFocused();
+ await page.getByRole('textbox',{name:'ค้นหาข่าว'}).fill('โมเดลเล็ก');
+ await expect(page.getByRole('heading',{name:'ผลการค้นหา · 1 เรื่อง'})).toBeVisible();
+ await page.getByRole('textbox',{name:'ค้นหาข่าว'}).fill('ไม่มีผลค้นหานี้xyz');
+ await expect(page.getByRole('heading',{name:'ยังไม่พบเรื่องที่ตรงกัน'})).toBeVisible();
+ await page.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();
+ await page.getByRole('button',{name:'ฉบับเย็น',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'ฉบับเย็นยังไม่พร้อมในตัวอย่างนี้'})).toBeVisible();
+ await page.getByRole('link',{name:'สำหรับนักพัฒนา',exact:true}).click();
+ await page.getByRole('button',{name:'Python',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'ผลการค้นหา · 2 เรื่อง'})).toBeVisible();
+});
+test('Manual default, dry-run, Hybrid safe publication, refusal reason, auto stop', async ({ page }) => {
+ await page.goto('/admin');
+ await expect(page.getByRole('button',{name:'Manual ตรวจเองทุกรายการ · ค่าเริ่มต้น'})).toHaveClass(/selected/);
+ await page.getByRole('button',{name:'ประเมินรายการค้างจำลอง'}).click();
+ await expect(page.locator('.queue-list .status-published')).toHaveCount(0);
+ await page.getByRole('button',{name:'Hybrid Official: Auto / Community: Manual'}).click();
+ await page.getByRole('button',{name:'ทดลองกฎ',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'ผลทดลอง · ยังไม่มีการเปลี่ยนสถานะ'})).toBeVisible();
+ await expect(page.locator('.queue-list .status-published')).toHaveCount(0);
+ await page.getByRole('button',{name:'ประเมินรายการค้างจำลอง'}).click();
+ await expect(page.locator('.queue-list .status-published')).toHaveCount(1);
+ await page.getByRole('button').filter({has:page.getByRole('heading',{name:'โมเดลใหม่อ้างว่าลดต้นทุนได้อย่างก้าวกระโดด'})}).click();
+ await page.getByRole('button',{name:'ปฏิเสธ',exact:true}).click();
+ await expect(page.getByRole('status')).toHaveText('กรุณาระบุเหตุผลก่อนปฏิเสธหรือถอนเผยแพร่');
+ await page.getByRole('textbox',{name:/เหตุผลการตัดสิน/}).fill('หลักฐานขัดแย้ง');
+ await page.getByRole('button',{name:'ปฏิเสธ',exact:true}).click();
+ await expect(page.locator('.queue-list .status-rejected')).toHaveCount(1);
+ await page.getByRole('button',{name:'Auto ผ่านเกณฑ์จึงเผยแพร่จำลอง'}).click();
+ await page.getByRole('button',{name:'หยุด Auto ทั้งระบบ',exact:true}).click();
+ await page.getByRole('button',{name:'ประเมินรายการค้างจำลอง'}).click();
+ await expect(page.locator('.queue-list .status-published')).toHaveCount(1);
+ await expect(page.locator('.queue-list .status-rejected')).toHaveCount(1);
+ await page.getByRole('button',{name:'ทดลองรอบล้มเหลว'}).click();
+ await expect(page.getByText('failed จำลอง · แหล่งตัวอย่างตอบกลับผิดพลาด · คงข่าวและเวลาอัปเดตเดิม')).toBeVisible();
+});
+test('mock agent settings never accept secrets; usage unknown is not zero', async ({ page }) => {
+ await page.goto('/admin/settings');
+ await expect(page.getByRole('textbox',{name:'API key จำลอง ไม่รับ key จริง'})).toBeDisabled();
+ await page.locator('select').nth(0).selectOption('Anthropic (จำลอง)');
+ await expect(page.locator('select').nth(1)).toHaveValue('demo-reasoning');
+ await page.getByRole('button',{name:'ทดสอบการเชื่อมต่อจำลอง'}).click();
+ await expect(page.getByText('จำลองสำเร็จ · ยังไม่ได้ยืนยัน credential หรือ model จริง')).toBeVisible();
+ await page.getByRole('button',{name:'บันทึกจำลอง',exact:true}).click();
+ await expect(page.getByText('บันทึกในหน้านี้แล้ว',{exact:true})).toBeVisible();
+ await page.getByRole('link',{name:'Usage & Budget',exact:true}).click();
+ await page.getByLabel('กรอง Agent ในรายงาน').selectOption('ตรวจคุณภาพ');
+ await expect(page.locator('.stats-grid').getByText('$0.072')).toBeVisible();
+ await expect(page.getByRole('row').filter({hasText:'demo-004'})).toContainText('ไม่ทราบ');
+});
+test('all routes fit viewport and have no browser errors', async ({ page }, testInfo) => {
+ const errors:string[]=[]; page.on('pageerror', e => errors.push(e.message));
+ for(const route of ['/','/developers','/news/context-kit','/admin/','/admin/settings','/admin/usage']) {
+  await page.goto(route); await page.evaluate(()=>document.fonts.ready);
+  await expect(page.getByRole('heading',{level:1})).toBeVisible();
+  if(route==='/admin/') await expect(page.getByRole('link',{name:'คัดข่าว',exact:true})).toHaveAttribute('aria-current','page');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({path:`.leancode/${testInfo.project.name}-${route.replaceAll('/','-')||'home'}.png`,fullPage:true});
+ }
+ expect(errors).toEqual([]);
+});

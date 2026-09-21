@@ -62,6 +62,16 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_PUBLIC_KEY
 
 ฐานข้อมูลอยู่ใน `supabase/migrations/` และชุดทดสอบอยู่ใน `supabase/tests/` การมีไฟล์ migration ไม่ได้หมายความว่ามีการนำไปใช้กับ Supabase ภายนอกแล้ว
 
+### AI provider API key
+
+หน้าเว็บเป็น static export จึงห้ามใส่ AI provider key ใน `NEXT_PUBLIC_*` หรือ source code
+
+- Production: เพิ่มคีย์ใน Supabase Dashboard ที่ **Edge Functions → Secrets** เช่น `OPENAI_API_KEY`
+- Local Edge Functions: เก็บใน `supabase/functions/.env` ซึ่งถูก `.gitignore` กันออกจาก Git
+- Edge Function อ่านค่าด้วย `Deno.env.get('OPENAI_API_KEY')`
+
+ระบบยังไม่ได้เลือกหรือเรียก AI provider จริง ชื่อ secret ต้องตรงกับ provider ที่เลือกภายหลัง หากเปิดให้ Admin จัดการหลาย credential ผ่านหน้าเว็บ ให้เก็บค่าเข้ารหัสใน Supabase Vault และบันทึกเฉพาะ Vault UUID ใน `private.credential_refs`
+
 ## โครงสร้างสำคัญ
 
 ```text

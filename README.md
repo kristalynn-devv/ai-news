@@ -61,6 +61,30 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_PUBLIC_KEY
 Service-role keys belong nowhere near this file. Authorization is enforced by RLS in the
 database, not by the client.
 
+## AI provider keys
+
+The site is a static export, so an AI provider key must never appear in a `NEXT_PUBLIC_*`
+variable or anywhere in the source. Keys live server-side, in Edge Function secrets.
+
+- **Production** — set `AI_PROVIDER`, `AI_MODEL` and the provider's key under
+  **Edge Functions → Secrets** in the Supabase Dashboard
+- **Local Edge Functions** — `supabase/functions/.env`, which is gitignored
+- Example values are in `supabase/functions/.env.example`; the helper waiting to be wired up is
+  `supabase/functions/_shared/ai-config.ts`
+
+| `AI_PROVIDER` | Secret the system reads |
+| --- | --- |
+| `deepseek` | `DEEPSEEK_API_KEY` |
+| `openai` | `OPENAI_API_KEY` |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `gemini` | `GEMINI_API_KEY` |
+| `groq` | `GROQ_API_KEY` |
+| `openrouter` | `OPENROUTER_API_KEY` |
+
+Only the active provider's key is read, and no provider is actually called yet. If admins are
+ever allowed to manage several credentials from the web UI, store one Supabase Vault secret per
+credential and keep only the Vault UUID in `private.credential_refs` — never the key itself.
+
 ## License
 
 [MIT](./LICENSE)

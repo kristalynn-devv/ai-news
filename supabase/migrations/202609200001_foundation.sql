@@ -248,13 +248,7 @@ create policy published_citations on public.citations for select to anon, authen
   using (exists (select 1 from public.stories s where s.id = story_id and not s.withdrawn));
 
 -- A Vault UUID is a reference, never a plaintext provider key. No decrypt RPC is exposed.
-DO $$ begin
-  if exists (select 1 from pg_namespace where nspname = 'vault') then
-    execute 'revoke all on schema vault from public, anon, authenticated';
-    execute 'revoke all on all tables in schema vault from public, anon, authenticated';
-    execute 'revoke all on all functions in schema vault from public, anon, authenticated';
-  end if;
-end $$;
+-- Supabase owns the vault schema and its function grants; this app never changes them.
 
 create function private.assert_admin() returns void
 language plpgsql stable security definer set search_path = '' as $$

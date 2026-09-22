@@ -1,0 +1,7 @@
+project_id = "ai-news"
+
+# Modern sb_secret_... keys are not JWTs, so the platform check cannot validate them.
+# The function authorizes in code with withSupabase({ auth: 'secret' }).
+# Without this, a plain `supabase functions deploy` re-enables the check and the probe 401s forever.
+[functions.ai-selftest]
+verify_jwt = false

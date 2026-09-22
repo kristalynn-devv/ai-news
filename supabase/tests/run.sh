@@ -17,6 +17,7 @@ if [[ "${1:-}" != "--baseline" ]]; then
 fi
 run_sql supabase/tests/drafts.sql
 run_sql supabase/tests/foundation.sql
+run_sql supabase/tests/scheduler.sql
 docker exec "$test_container" cat /tmp/ai-daily-contract.json | node --experimental-strip-types scripts/check-db-contract.mjs
 run_sql supabase/tests/concurrency.sql
 set +e
@@ -29,7 +30,8 @@ if ! { [[ "$first_status" = 0 && "$second_status" = 3 ]] || [[ "$first_status" =
   cat "$race_results/first" "$race_results/second"
   exit 1
 fi
-rg -q 'Story changed; reload before deciding' "$race_results"
+# grep, not rg: the harness must run on a machine without ripgrep installed.
+grep -qr 'Story changed; reload before deciding' "$race_results"
 count="$(docker exec "$test_container" psql -X -At -U postgres -c 'select count(*) from private.reviews')"
 [[ "$count" = 1 ]]
 echo 'Concurrent approvals: one accepted, one stale, one review recorded.'

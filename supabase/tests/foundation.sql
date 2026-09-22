@@ -137,8 +137,11 @@ reset role;
 select pg_temp.assert_true((select revision_id='30000000-0000-4000-8000-000000000001' from private.reviews where decision='withdraw'), 'withdrawal records the approved revision, not the pending draft');
 
 -- Budget/usage/run schema invariants; no reservation/execution capability is exposed.
-insert into private.budgets(id,month_start) values ('40000000-0000-4000-8000-000000000001','2026-09-01');
-select pg_temp.expect_error('update private.budgets set cash_limit=1','23514');
+-- A past month: the scheduler migration seeds the current one, and month_start is unique.
+insert into private.budgets(id,month_start) values ('40000000-0000-4000-8000-000000000001','2026-02-01');
+update private.budgets set cash_limit=1 where id='40000000-0000-4000-8000-000000000001';
+select pg_temp.assert_true((select cash_limit=1 from private.budgets where id='40000000-0000-4000-8000-000000000001'),
+  'funding a month is allowed now that the latch is a condition, not a prohibition');
 select pg_temp.expect_error('update private.budgets set ai_enabled=true','23514');
 insert into private.runs(id,run_key,trigger_kind,policy_version) values ('50000000-0000-4000-8000-000000000001','2026-09-20T00:00:00Z','scheduled',1);
 select pg_temp.expect_error('insert into private.runs(run_key,trigger_kind,policy_version) values (''2026-09-20T00:00:00Z'',''manual'',1)','23505');

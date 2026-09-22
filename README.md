@@ -5,7 +5,9 @@ general feed and a developer-oriented one; editors get a review queue, a draft e
 approval trail that cannot be rewritten after the fact.
 
 > **Status: prototype.** The static site is deployed, and the production Supabase project has the
-> schema, RLS, Google Auth, and one allow-listed manager. News ingestion and scheduling remain off.
+> schema, RLS, Google Auth, and one allow-listed manager. The scheduler is installed with a capped
+> monthly AI budget, but AI is switched off, no credential is attached, and no pipeline exists yet —
+> nothing fetches, summarises, or spends anything.
 
 ## What works today
 

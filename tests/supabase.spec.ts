@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type Route } from '@playwright/test';
 test.skip(process.env.TEST_SUPABASE !== '1', 'Requires a Supabase-mode static build with the fixture public config');
 const id='20000000-0000-4000-8000-000000000001';
 const revision='30000000-0000-4000-8000-000000000001';
@@ -6,6 +6,16 @@ const content={title:'ข่าวใหม่หลัง build สำหรั
 const story={id,slug:'after-build',revision_id:revision,content,published_at:'2026-09-20T00:00:00Z',updated_at:'2026-09-20T00:00:00Z',withdrawn:false};
 const citation={story_id:id,label:'เอกสารต้นฉบับ',url:'https://example.com/original',source_published_at:null};
 const queue={id,slug:'after-build',revision_id:revision,version:1,status:'pending',has_publication:false,content,checks_passed:true,source_conflict:false,unsupported_claims:false,injection_detected:false,policy_version:1,citations:[{label:citation.label,url:citation.url,source_published_at:null,verified:true}]};
+const authUserId='10000000-0000-4000-8000-000000000001';
+function fixtureToken(email:string) {
+  return [{alg:'HS256',typ:'JWT'},{sub:authUserId,email,aud:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'fixture']
+    .map(value=>Buffer.from(typeof value==='string'?value:JSON.stringify(value)).toString('base64url')).join('.');
+}
+async function fulfillGoogleOAuth(route:Route,page:Page,email:string) {
+  const callback=new URL('/admin/',page.url());
+  callback.hash=new URLSearchParams({access_token:fixtureToken(email),refresh_token:'fixture-refresh',expires_in:'3600',token_type:'bearer'}).toString();
+  await route.fulfill({status:302,headers:{location:callback.href}});
+}
 
 test('new static URL, Thai search, developer view, unknown dates and refresh failure',async({page},testInfo)=>{
   let fail=false;
@@ -38,15 +48,12 @@ test('new static URL, Thai search, developer view, unknown dates and refresh fai
 });
 
 test('admin authorization, explicit review, logout and inactive settings',async({page},testInfo)=>{
-  let admin=false,approved=false;
+  let admin=false,approved=false,attempt=0,currentEmail='';
   const decisions:unknown[]=[];
   await page.route('https://fixture.supabase.co/**',async route=>{
     const request=route.request();const path=new URL(request.url()).pathname;
-    if(path.endsWith('/token')) {
-      admin=request.postDataJSON().email==='editor@fixture.invalid';
-      const token=[{alg:'HS256',typ:'JWT'},{sub:'10000000-0000-4000-8000-000000000001',exp:Math.floor(Date.now()/1000)+3600},'fixture'].map(x=>Buffer.from(typeof x==='string'?x:JSON.stringify(x)).toString('base64url')).join('.');
-      return route.fulfill({json:{access_token:token,token_type:'bearer',expires_in:3600,refresh_token:'fixture-refresh',user:{id:'10000000-0000-4000-8000-000000000001',aud:'authenticated',email:request.postDataJSON().email}}});
-    }
+    if(path.endsWith('/authorize')) { currentEmail=attempt++===0?'reader@fixture.invalid':'editor@fixture.invalid';admin=currentEmail.startsWith('editor@');return fulfillGoogleOAuth(route,page,currentEmail); }
+    if(path.endsWith('/user')) return route.fulfill({json:{id:authUserId,aud:'authenticated',email:currentEmail}});
     if(path.endsWith('/is_admin')) return route.fulfill({json:admin});
     if(path.endsWith('/logout')) return route.fulfill({status:204});
     if(path.endsWith('/admin_queue')) return route.fulfill({status:admin?200:403,json:admin?(approved?[]:[queue]):{message:'denied'}});
@@ -56,13 +63,9 @@ test('admin authorization, explicit review, logout and inactive settings',async(
   });
   await page.goto('/admin/');
   await expect(page.getByRole('heading',{name:'เข้าสู่ระบบบรรณาธิการ'})).toBeVisible();
-  await page.getByLabel('อีเมล',{exact:true}).fill('reader@fixture.invalid');
-  await page.getByLabel('รหัสผ่าน',{exact:true}).fill('fixture-only-password');
-  await page.getByRole('button',{name:'เข้าสู่ระบบ',exact:true}).click();
+  await page.getByRole('button',{name:'เข้าสู่ระบบด้วย Google',exact:true}).click();
   await expect(page.locator('main').getByRole('alert')).toHaveText('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแล');
-  await page.getByLabel('อีเมล',{exact:true}).fill('editor@fixture.invalid');
-  await page.getByLabel('รหัสผ่าน',{exact:true}).fill('fixture-only-password');
-  await page.getByRole('button',{name:'เข้าสู่ระบบ',exact:true}).click();
+  await page.getByRole('button',{name:'เข้าสู่ระบบด้วย Google',exact:true}).click();
   await expect(page.getByRole('button',{name:'อนุมัติเผยแพร่',exact:true})).toBeDisabled();
   await page.getByLabel('เหตุผลการตัดสิน').fill('ตรวจต้นฉบับแล้ว');
   await page.screenshot({path:`.leancode/${testInfo.project.name}-supabase-admin.png`,fullPage:true});
@@ -84,10 +87,8 @@ test('admin creates and revises a manual draft with visible history',async({page
   let historyItems:unknown[]=[];
   await page.route('https://fixture.supabase.co/**',async route=>{
     const request=route.request();const path=new URL(request.url()).pathname;
-    if(path.endsWith('/token')) {
-      const token=[{alg:'HS256',typ:'JWT'},{sub:'10000000-0000-4000-8000-000000000001',exp:Math.floor(Date.now()/1000)+3600},'fixture'].map(x=>Buffer.from(typeof x==='string'?x:JSON.stringify(x)).toString('base64url')).join('.');
-      return route.fulfill({json:{access_token:token,token_type:'bearer',expires_in:3600,refresh_token:'fixture-refresh',user:{id:'10000000-0000-4000-8000-000000000001',aud:'authenticated',email:'editor@fixture.invalid'}}});
-    }
+    if(path.endsWith('/authorize')) return fulfillGoogleOAuth(route,page,'editor@fixture.invalid');
+    if(path.endsWith('/user')) return route.fulfill({json:{id:authUserId,aud:'authenticated',email:'editor@fixture.invalid'}});
     if(path.endsWith('/is_admin')) return route.fulfill({json:true});
     if(path.endsWith('/admin_queue')) return route.fulfill({json:queueItems});
     if(path.endsWith('/admin_story_history')) return route.fulfill({json:historyItems});
@@ -103,9 +104,7 @@ test('admin creates and revises a manual draft with visible history',async({page
     return route.fulfill({status:404,json:{message:'unexpected request'}});
   });
   await page.goto('/admin/');
-  await page.getByLabel('อีเมล',{exact:true}).fill('editor@fixture.invalid');
-  await page.getByLabel('รหัสผ่าน',{exact:true}).fill('fixture-only-password');
-  await page.getByRole('button',{name:'เข้าสู่ระบบ',exact:true}).click();
+  await page.getByRole('button',{name:'เข้าสู่ระบบด้วย Google',exact:true}).click();
   await page.getByRole('button',{name:'สร้างร่างข่าว',exact:true}).click();
   await page.getByLabel('Slug ภาษาอังกฤษ').fill('manual-story');
   await page.getByLabel('หัวข้อ').fill('ร่างข่าวจากบรรณาธิการ');

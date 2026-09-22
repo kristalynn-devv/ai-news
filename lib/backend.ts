@@ -9,7 +9,7 @@ export type Backend = {
   source: 'mock' | 'supabase';
   list: (query?: string, offset?: number) => Promise<Story[]>;
   get: (slug: string) => Promise<Story | null>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: (redirectTo: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: () => Promise<boolean>;
   queue: (status?: string, offset?: number) => Promise<QueueStory[]>;
@@ -24,11 +24,11 @@ export function createBackend(config: AppConfig, fetcher: typeof fetch = fetch):
     source: 'mock',
     async list(query = '', offset = 0) { return stories.filter(s => `${s.title} ${s.summary} ${s.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())).slice(offset, offset + PAGE_SIZE); },
     async get(slug) { return stories.find(s => s.id === slug) ?? null; },
-    signIn: unavailable, signOut: async () => {}, isAdmin: async () => false, queue: unavailable, review: unavailable,
+    signInWithGoogle: unavailable, signOut: async () => {}, isAdmin: async () => false, queue: unavailable, review: unavailable,
     saveDraft: unavailable, history: unavailable,
   };
   const client = createClient(config.url, config.publishableKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     global: { fetch: (input, init) => fetcher(input, { ...init, signal: AbortSignal.any([AbortSignal.timeout(10000), ...(init?.signal ? [init.signal] : [])]) }) },
   });
   async function decodeRows(data: unknown): Promise<Story[]> {
@@ -53,9 +53,17 @@ export function createBackend(config: AppConfig, fetcher: typeof fetch = fetch):
       if (error) throw new Error('โหลดข่าวไม่สำเร็จ');
       return (await decodeRows(data))[0] ?? null;
     },
-    async signIn(email, password) {
-      const { error } = await client.auth.signInWithPassword({ email, password });
-      if (error) throw new Error('เข้าสู่ระบบไม่สำเร็จ ตรวจบัญชีหรือรอสักครู่แล้วลองใหม่');
+    async signInWithGoogle(redirectTo) {
+      let callback: URL;
+      try { callback = new URL(redirectTo); }
+      catch { throw new Error('ที่อยู่กลับจาก Google ไม่ถูกต้อง'); }
+      const local = ['127.0.0.1', 'localhost'].includes(callback.hostname);
+      if ((callback.protocol !== 'https:' && !(local && callback.protocol === 'http:')) || callback.username || callback.password ||
+        callback.search || callback.hash || !['/admin', '/admin/'].includes(callback.pathname)) {
+        throw new Error('ที่อยู่กลับจาก Google ไม่ถูกต้อง');
+      }
+      const { data, error } = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: callback.href } });
+      if (error || !data.url) throw new Error('เริ่ม Google Login ไม่สำเร็จ กรุณาลองใหม่');
     },
     async signOut() { await client.auth.signOut({ scope: 'local' }); },
     async isAdmin() {
@@ -63,7 +71,11 @@ export function createBackend(config: AppConfig, fetcher: typeof fetch = fetch):
       if (!session.session) return false;
       const { data, error } = await client.rpc('is_admin');
       if (error) throw new Error('ตรวจสิทธิ์ไม่สำเร็จ กรุณาเข้าสู่ระบบใหม่');
-      return data === true;
+      if (data !== true) {
+        await client.auth.signOut({ scope: 'local' });
+        throw new Error('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแล');
+      }
+      return true;
     },
     async queue(status = 'pending', offset = 0) {
       const { data, error } = await client.rpc('admin_queue', { p_status: status, p_offset: offset });

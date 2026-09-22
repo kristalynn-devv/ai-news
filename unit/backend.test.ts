@@ -20,7 +20,15 @@ test('mock adapter never makes a network call and does not pretend to authorize'
   assert.equal((await backend.list('โมเดลเล็ก')).length,1);
   assert.equal((await backend.get('context-kit'))?.id,'context-kit');
   assert.equal(await backend.isAdmin(),false);
-  await assert.rejects(()=>backend.signIn('demo','password'));
+  await assert.rejects(()=>backend.signInWithGoogle('https://example.com/admin/'));
+});
+test('Google sign-in accepts only the admin callback and does not make a provider request itself', async () => {
+  let count=0;const backend=createBackend(config,async()=>{count++;throw new Error('unexpected network');});
+  await backend.signInWithGoogle('https://ai-daily.krista-lyn.com/admin/');
+  assert.equal(count,0);
+  for (const callback of ['javascript:alert(1)','https://user@example.com/admin/','https://example.com/news/','https://example.com/admin/?next=evil']) {
+    await assert.rejects(()=>backend.signInWithGoogle(callback), /Google/);
+  }
 });
 test('content contract rejects malformed arrays, extra private fields, read length, and unsafe citations', () => {
   for (const invalid of [{...content,tags:[{}]}, {...content,read:-1}, {...content,read:1.2}, {...content,private_note:'secret'}, {...content,technical:{impact:'ok',steps:'bad',caveat:'ok'}}]) assert.equal(contentSchema.safeParse(invalid).success,false);

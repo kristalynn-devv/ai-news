@@ -4,8 +4,8 @@ A Thai-language daily for AI news, with the editorial back office attached. Read
 general feed and a developer-oriented one; editors get a review queue, a draft editor, and an
 approval trail that cannot be rewritten after the fact.
 
-> **Status: prototype.** Runs locally against mock data. Nothing is deployed, and no production
-> service is wired up yet.
+> **Status: prototype.** The static site is deployed, and the production Supabase project has the
+> schema, RLS, Google Auth, and one allow-listed manager. News ingestion and scheduling remain off.
 
 ## What works today
 
@@ -60,6 +60,23 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_PUBLIC_KEY
 
 Service-role keys belong nowhere near this file. Authorization is enforced by RLS in the
 database, not by the client.
+
+### Google login for editors
+
+The editor UI starts Google OAuth through Supabase. Configure Google as a Web application with:
+
+```text
+Authorized JavaScript origin
+https://ai-daily.krista-lyn.com
+
+Authorized redirect URI
+https://yxzvrtxukqcvtznaacrp.supabase.co/auth/v1/callback
+```
+
+In Supabase Auth URL Configuration, set the Site URL to `https://ai-daily.krista-lyn.com` and add
+`https://ai-daily.krista-lyn.com/admin/` to the redirect allow list. Keep the Google Client Secret
+only in the Supabase provider settings. A Google identity authenticates the user; membership in
+`private.admin_users` still decides whether that user can open the back office.
 
 ## AI provider keys
 

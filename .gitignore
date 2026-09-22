@@ -4,6 +4,7 @@ node_modules/
 playwright-report/
 test-results/
 .env*
+client_secret_*.apps.googleusercontent.com.json
 
 !.env.example
 out/

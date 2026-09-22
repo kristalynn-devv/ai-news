@@ -9,3 +9,5 @@ test-results/
 out/
 .leancode/
 HANDOFF.md
+.wayfinder/
+supabase/.temp/

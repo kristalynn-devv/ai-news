@@ -18,6 +18,7 @@ fi
 run_sql supabase/tests/drafts.sql
 run_sql supabase/tests/foundation.sql
 run_sql supabase/tests/scheduler.sql
+run_sql supabase/tests/sources.sql
 docker exec "$test_container" cat /tmp/ai-daily-contract.json | node --experimental-strip-types scripts/check-db-contract.mjs
 run_sql supabase/tests/concurrency.sql
 set +e

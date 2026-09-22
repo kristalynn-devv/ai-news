@@ -17,8 +17,8 @@ select pg_temp.assert_true(exists(select 1 from private.editorial_policies where
 insert into auth.users values ('10000000-0000-4000-8000-000000000001'), ('10000000-0000-4000-8000-000000000002');
 insert into private.admin_users values ('10000000-0000-4000-8000-000000000001', true);
 insert into private.story_records(id,event_key,slug,source_key) values
-  ('20000000-0000-4000-8000-000000000001','event-1','news-one','official'),
-  ('20000000-0000-4000-8000-000000000002','event-2','news-two','community');
+  ('20000000-0000-4000-8000-000000000001','event-1','news-one','manual'),
+  ('20000000-0000-4000-8000-000000000002','event-2','news-two','manual');
 insert into private.revisions(id,story_id,revision_number,content,checks_passed,evaluated_policy_version)
 select ('30000000-0000-4000-8000-00000000000' || n)::uuid,
        ('20000000-0000-4000-8000-00000000000' || n)::uuid, 1,
@@ -86,7 +86,7 @@ select public.review_story('20000000-0000-4000-8000-000000000002','30000000-0000
 reset role;
 select pg_temp.assert_true(private.publication_decision('20000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-000000000002',1) = 'held_status', 'rejected never auto returns');
 set local role authenticated;
-select public.set_editorial_policy(1,'Hybrid',false, array['official'],array['official']);
+select public.set_editorial_policy(1,'Hybrid',false, array['manual'],array['manual']);
 select pg_temp.expect_error('select public.set_editorial_policy(1,''Auto'',false)','40001');
 reset role;
 select pg_temp.assert_true(private.publication_decision('20000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000003',1) = 'stale_policy', 'policy change cannot republish backlog');
